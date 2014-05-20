@@ -23,6 +23,13 @@ RKDB = 777416   ; Data Buffer
         ADD     #2,SP
 .ENDM   PRINT
 
+.MACRO  WRITE   BUFFER, N
+        MOV     BUFFER,-(SP)
+        MOV     N,-(SP)
+        JSR     PC,IWRITE
+        ADD     #4,SP
+.ENDM   WRITE
+        
 .MACRO  READLN  BUFFER, N       ; Calling macro for readln statement
         MOV     BUFFER,-(SP)
         MOV     N,-(SP)
@@ -52,23 +59,12 @@ LAB:    BIT     @#RKCS,#0200    ; Check drive ready
 ;;; 030000 - start of output buffer
 ;;; 100000 - top of stack
 
-;;; R2 - output buffer
-;;; R4 - word buffer
-;;; R5 - scratch
-.MACRO  OCTCHR
-        MOV     R4,R5
-        BIC     #177770,R5
-        ADD     #060,R5
-        MOVB    R5,-(R2)
-        ASH     #-3,R4
-        BIC     #160000,R4
-.ENDM   OCTCHR
 
 START:
         ;; Set up SP (start @32K)
         MOV     #100000,SP
         ;; Emit ready msg
-        PRINT   #MREADY
+        WRITE   #MREADY,#5
         ;; Wait for disk number
         JSR     PC,GETCH
         SUB     #060,R1         ; Convert from char to int
@@ -88,25 +84,7 @@ CYLRD:
         MOV     #000005,@#RKCS  ; Begin read
         RKRDYW
         ;; Dump cylinder
-        MOV     #010000,R1      ; R1 - input buffer
-        MOV     #030000,R2      ; R2 - output buffer
-        MOV     #14000, R3      ; R3 - word count
-DMPLP:
-        MOV     (R1)+,R4
-        ADD     #06,R2
-        OCTCHR
-        OCTCHR
-        OCTCHR
-        OCTCHR
-        OCTCHR
-        OCTCHR
-        ADD     #06,R2
-        MOVB    #40,(R2)+
-        DEC     R3
-        BNE     DMPLP
-
-        MOVB    #0,(R2)+       ; null terminate
-        PRINT   #030000
+        WRITE   #010000,$14000   
 
         DEC     R5
         BNE     CYLRD
@@ -115,17 +93,19 @@ DONE:
         HALT
 
 ;;; Print function
-IPRINT:
+IWRITE:
         MOV     R1,-(SP)
-        MOV     4(SP),R1
-PRLOOP:
+        MOV     R2,-(SP)
+        MOV     6(SP),R2        ; R2 - count
+        MOV     10(SP),R1       ; R1 - buffer
+WRLOOP:
         BIT     @#XCSR,#000200  ; Check XMIT RDY
-        BEQ     PRLOOP          ; Loop if not set
-        TSTB    (R1)            ; Check for null terminator
-        BEQ     PREND           ; Terminate if found
+        BEQ     WRLOOP          ; Loop if not set
         MOVB    (R1)+,@#XBUF    ; Write character to XBUF
-        BR      PRLOOP
-PREND:
+        DEC     R2
+        BNE     WRLOOP
+WREND:
+        MOV     R2,(SP)+
         MOV     R1,(SP)+
         RTS     PC
 
@@ -136,31 +116,6 @@ GETCH:
         BEQ     GETCH           ; Loop if not set
         MOV     @#RBUF,R1       ; Read next character
         RTS     PC
-
-;;; Readline function
-IRDLN:
-        MOV     R1,-(SP)        ; Push R1-R3
-        MOV     R2,-(SP)
-        MOV     R3,-(SP)
-        MOV     12(SP),R3       ; Buffer in R3
-        MOV     10(SP),R2       ; Bufsize in R2
-        DEC     R2              ; Make room for null termination
-
-RDC:    JSR     PC,GETCH        ; Get next character
-        CMP     R1,#015         ; If carriage return, terminate
-        BEQ     RTERM
-        DEC     R2
-        TST     R2
-        BEQ     RTERM
-        MOVB    R1,(R3)+        ; Store next character
-        BR      RDC
-RTERM:
-        MOVB    #0,(R3)+        ; Null terminator
-        MOV     R3,(SP)+        ; Pop R3-R1
-        MOV     R2,(SP)+
-        MOV     R1,(SP)+
-        RTS     PC
-
         
 ;;; Strings
 MREADY: .ASCIZ  /READY/<CR><LF>
