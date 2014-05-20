@@ -2,10 +2,12 @@
 
         ;; Register definitions
         ;; DL11
+SERBAS = 777560 ; Base address of serial port 
 RCSR = 777560   ; RX Status
 RBUF = 777562   ; RX Buffer
 XCSR = 777564   ; TX Status
 XBUF = 777566   ; TX Buffer
+
         ;; RK11
 RKDS = 777400   ; Drive Status
 RKER = 777402   ; Error
@@ -26,22 +28,27 @@ START:
         ;; Init disk
         ;; Read sector
         ;; Dump sector
+ECHO:
+        BIT     @#RCSR,#000200  ; Check RX ready
+        BEQ     ECHO            ; Loop if not set
+        MOV     @#RBUF,R1
+        MOV     R1,@#XBUF
+        BR      ECHO
+        
 DONE:
         HALT
+
 PRINTSTR:
         MOV     R1,-(SP)
-        MOV     R2,-(SP)
-        MOV     6(SP),R1
-        MOV     #XCSR,R2        ; Load DL11 tx status reg
+        MOV     4(SP),R1
 PRLOOP:
-        BIT     (R2),#000200    ; Check XMIT RDY
+        BIT     @#XCSR,#000200 ; Check XMIT RDY
         BEQ     PRLOOP          ; Loop if not set
         TSTB    (R1)            ; Check for null terminator
         BEQ     PREND           ; Terminate if found
-        MOVB    (R1)+,2(R2)     ; Write character to XBUF
+        MOVB    (R1)+,@#XBUF   ; Write character to XBUF
         BR      PRLOOP
 PREND:
-        MOV     R2,(SP)+
         MOV     R1,(SP)+
         RTS     PC
 
