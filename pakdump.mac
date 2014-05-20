@@ -19,10 +19,17 @@ RKDB = 777416   ; Data Buffer
 
 .MACRO  PRINT   BUFFER
         MOV     BUFFER,-(SP)
-        JSR     PC,PRINTSTR
+        JSR     PC,IPRINT
         ADD     #2,SP
 .ENDM   PRINT
 
+.MACRO  READLN  BUFFER, N
+        MOV     BUFFER,-(SP)
+        MOV     N,-(SP)
+        JSR     PC,IRDLN
+        ADD     #4,SP
+.ENDM   READLN       
+        
 START:
         ;; Set up SP (start @32K)
         MOV     #100000,SP
@@ -32,27 +39,57 @@ START:
         ;; Init disk
         ;; Read sector
         ;; Dump sector
-ECHO:
-        BIT     @#RCSR,#000200  ; Check RX ready
-        BEQ     ECHO            ; Loop if not set
-        MOV     @#RBUF,R1
-        MOV     R1,@#XBUF
-        BR      ECHO
+
+        ;; Read line into buffer
+        READLN  #5000,20
+        ;; Echo line to console
+        PRINT   #5000
         
 DONE:
         HALT
 
-PRINTSTR:
+IPRINT:
         MOV     R1,-(SP)
         MOV     4(SP),R1
 PRLOOP:
-        BIT     @#XCSR,#000200 ; Check XMIT RDY
+        BIT     @#XCSR,#000200  ; Check XMIT RDY
         BEQ     PRLOOP          ; Loop if not set
         TSTB    (R1)            ; Check for null terminator
         BEQ     PREND           ; Terminate if found
-        MOVB    (R1)+,@#XBUF   ; Write character to XBUF
+        MOVB    (R1)+,@#XBUF    ; Write character to XBUF
         BR      PRLOOP
 PREND:
+        MOV     R1,(SP)+
+        RTS     PC
+
+        ;; GETCH: returns next received character in R1.
+        ;; Does not time out.
+GETCH:                          
+        BIT     @#RCSR,#000200  ; Check RX ready
+        BEQ     GETCH           ; Loop if not set
+        MOV     @#RBUF,R1       ; Read next character
+        RTS     PC
+
+IRDLN:
+        MOV     R1,-(SP)        ; Push R1-R3
+        MOV     R2,-(SP)
+        MOV     R3,-(SP)
+        MOV     12(SP),R3       ; Buffer in R3
+        MOV     10(SP),R2       ; Bufsize in R2
+        DEC     R2              ; Make room for null termination
+
+RDC:    JSR     PC,GETCH        ; Get next character
+        CMP     R1,#015         ; If carriage return, terminate
+        BEQ     RTERM
+        DEC     R2
+        TST     R2
+        BEQ     RTERM
+        MOVB    R1,(R3)+        ; Store next character
+        BR      RDC
+RTERM:
+        MOVB    #0,(R3)+        ; Null terminator
+        MOV     R3,(SP)+        ; Pop R3-R1
+        MOV     R2,(SP)+
         MOV     R1,(SP)+
         RTS     PC
 
