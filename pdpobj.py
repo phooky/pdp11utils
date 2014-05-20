@@ -43,7 +43,7 @@ class ObjFile:
             assert len(hdr) == 6
             assert hdr[0:2] == '\x01\x00'
             blen = to_word(hdr[2:4])
-            print "Block len ",blen
+            #print "Block len ",blen
             assert blen >= 6
             self.typeval = to_word(hdr[4:])
             self.data = f.read(blen-6)
@@ -51,13 +51,12 @@ class ObjFile:
             #check = (sum(map(ord,hdr)) + sum(map(ord,self.data))) % 0xff
             #assert ((check + cs) % 0xff) == 0
             # checksums are failing; either badly generated or specified
-            print "Type",ObjFile.Block.type_table[self.typeval]
+            #print "Type",ObjFile.Block.type_table[self.typeval]
             if self.typeval == 3:
                 # TXT
                 self.location = to_word(self.data[0:2])
                 self.bin = self.data[2:]
                 self.words = to_word_array(self.bin)
-                print self.location, map(oct,self.words)
 
     def read_block(self,f):
         return ObjFile.Block(f)
