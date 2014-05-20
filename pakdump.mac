@@ -1,14 +1,14 @@
         .TITLE  PAKDUMP
 
-        ;; Register definitions
-        ;; DL11
+;;; Register definitions
+;;; DL11
 SERBAS = 777560 ; Base address of serial port 
 RCSR = 777560   ; RX Status
 RBUF = 777562   ; RX Buffer
 XCSR = 777564   ; TX Status
 XBUF = 777566   ; TX Buffer
 
-        ;; RK11
+;;; RK11
 RKDS = 777400   ; Drive Status
 RKER = 777402   ; Error
 RKCS = 777404   ; Control Status
@@ -17,37 +17,66 @@ RKBA = 777410   ; Bus Address
 RKDA = 777412   ; Disk Address
 RKDB = 777416   ; Data Buffer
 
-.MACRO  PRINT   BUFFER
+.MACRO  PRINT   BUFFER          ; Calling macro for print statement
         MOV     BUFFER,-(SP)
         JSR     PC,IPRINT
         ADD     #2,SP
 .ENDM   PRINT
 
-.MACRO  READLN  BUFFER, N
+.MACRO  READLN  BUFFER, N       ; Calling macro for readln statement
         MOV     BUFFER,-(SP)
         MOV     N,-(SP)
         JSR     PC,IRDLN
         ADD     #4,SP
-.ENDM   READLN       
-        
+.ENDM   READLN
+
+;;; Wait for RK11 ready bit
+.MACRO  RKRDYW  ?LAB
+LAB:    BIT     @#RKCS,#0200    ; Check drive ready
+        BEQ     LAB
+.ENDM   RKRDYW
+
+;;; PAKDUMP.MAC: dump RK05 decpack drives to the terminal as
+;;; raw binary code.
+;;;
+;;; Operation:
+;;; PAKDUMP emits "READY\n" on the terminal when it's ready to go.
+;;; It waits for a single numeric character to indicate which drive
+;;; to dump, and then dumps all data.
+;;;
+
+;;; Memory Map: (all values in octal)
+;;; 000000 - start of code
+;;; 010000 - start of read buffer
+;;; 100000 - top of stack
 START:
         ;; Set up SP (start @32K)
         MOV     #100000,SP
         ;; Emit ready msg
         PRINT   #MREADY
-        ;; Wait for start msg
+        ;; Wait for disk number
+        JSR     PC,GETCH
+        SUB     #060,R1         ; Convert from char to int
         ;; Init disk
-        ;; Read sector
-        ;; Dump sector
+        RKRDYW                  ; Wait for controller ready
+        MOV     #000001,@#RKCS  ; Issue controller reset
+        RKRDYW                  ; Wait for controller ready
+        MOV     R1,R2
+        ASH     #13,R2
+        MOV     R2,@#RKDA       ; Set address of 0,0,0 on drive
 
-        ;; Read line into buffer
-        READLN  #5000,20
-        ;; Echo line to console
-        PRINT   #5000
+        ;; Read cylinder
+        MOV     #-14000,@#RKWC  ; Load an entire cylinder
+        MOV     #10000,@#RKBA   ; Start loading at location 10000
+        MOV     #000005,@#RKCS  ; Begin read
+        RKRDYW
+        ;; Dump cylinder
+
         
 DONE:
         HALT
 
+;;; Print function
 IPRINT:
         MOV     R1,-(SP)
         MOV     4(SP),R1
@@ -62,14 +91,15 @@ PREND:
         MOV     R1,(SP)+
         RTS     PC
 
-        ;; GETCH: returns next received character in R1.
-        ;; Does not time out.
+;;; Getch function: returns next received character in R1.
+;;; Does not time out.
 GETCH:                          
         BIT     @#RCSR,#000200  ; Check RX ready
         BEQ     GETCH           ; Loop if not set
         MOV     @#RBUF,R1       ; Read next character
         RTS     PC
 
+;;; Readline function
 IRDLN:
         MOV     R1,-(SP)        ; Push R1-R3
         MOV     R2,-(SP)
@@ -93,5 +123,7 @@ RTERM:
         MOV     R1,(SP)+
         RTS     PC
 
+        
+;;; Strings
 MREADY: .ASCIZ  /READY/<CR><LF>
         .END    PAKDUMP
