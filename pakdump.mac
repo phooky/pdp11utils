@@ -61,6 +61,7 @@ LAB:    BIT     @#RKCS,#0200    ; Check drive ready
         ADD     #060,R5
         MOVB    R5,-(R2)
         ASH     #-3,R4
+        BIC     #160000,R4
 .ENDM   OCTCHR
 
 START:
@@ -79,6 +80,8 @@ START:
         ASH     #13,R2
         MOV     R2,@#RKDA       ; Set address of 0,0,0 on drive
 
+        MOV     #203, R5        ; R5 - cylinder count
+CYLRD:  
         ;; Read cylinder
         MOV     #-14000,@#RKWC  ; Load an entire cylinder
         MOV     #010000,@#RKBA   ; Start loading at location 10000
@@ -102,8 +105,11 @@ DMPLP:
         DEC     R3
         BNE     DMPLP
 
-        MOVB    #0,-1(R2)       ; null terminate
+        MOVB    #0,(R2)+       ; null terminate
         PRINT   #030000
+
+        DEC     R5
+        BNE     CYLRD
         
 DONE:
         HALT

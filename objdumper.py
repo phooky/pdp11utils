@@ -2,6 +2,8 @@
 
 from simh import SIMH
 from pdpobj import ObjFile
+from emulator import Emulator
+import serial
 import argparse
 
 if __name__ == '__main__':
@@ -9,15 +11,17 @@ if __name__ == '__main__':
     parser.add_argument("-s","--simh",type=str,default=None,
                         help="Path to write SIMH script to")
     parser.add_argument("-e","--emulator",type=str,default=None,
-                        help="Path to write console emulator script to")
+                        help="Console emulator port")
     parser.add_argument("objects",type=str,nargs="*")
     args = parser.parse_args()
 
     emus = []
+    s = None
     if args.simh:
         emus.append(SIMH(open(args.simh,'w')))
     if args.emulator:
-        emus.append(Emulator(open(args.emulator,'w')))
+        s = Emulator(serial.Serial(args.emulator,9600,timeout=0.02))
+        emus.append(s)
 
     for path in args.objects:
         o = ObjFile(path)
@@ -26,4 +30,6 @@ if __name__ == '__main__':
                 for e in emus: e.load_address(block.location)
                 for w in block.words:
                     for e in emus: e.deposit_word(w)
-
+    if s:
+        s.f.flushInput()
+        s.start(0)
