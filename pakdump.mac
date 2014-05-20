@@ -16,6 +16,8 @@ RKDA = 777412   ; Disk Address
 RKDB = 777416   ; Data Buffer
      
 START:
+        ;; Set up SP (start @32K)
+        MOV #100000,SP
         ;; Emit ready msg
         MOV     #MREADY,-(SP)
         JSR     PC,PRINTSTR
