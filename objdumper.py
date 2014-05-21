@@ -31,5 +31,4 @@ if __name__ == '__main__':
                 for w in block.words:
                     for e in emus: e.deposit_word(w)
     if s:
-        s.f.flushInput()
         s.start(0)
