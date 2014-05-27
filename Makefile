@@ -1,11 +1,18 @@
-
-MACRO11=./macro11
+DIRS=./macro11
+MACRO11=./macro11/macro11
 OBJ_DUMPER=./objdumper.py
 
 OBJS=pakdump.out pakdump.simh
 all: $(OBJS)
 
-%.simh: %.out
+.PHONY: subdirs $(DIRS)
+     
+subdirs: $(DIRS)
+   
+$(DIRS):
+	$(MAKE) -C $@
+     
+%.simh: %.out subdirs
 	$(OBJ_DUMPER) $< -s $@
 
 %.out: %.mac
