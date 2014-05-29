@@ -53,11 +53,11 @@ START:
         ;; Set up SP (start @32K)
         MOV     #077776,SP
         ;; Initialize interrupt vector
-;;         MOV     #ITOP,R1
-;; IFILL:  MOV     #240,-(R1)      ; Priority five
-;;         MOV     #NISR,-(R1)     ; Null interrupt
-;;         TST     R1
-;;         BNE     IFILL
+        MOV     #ITOP,R1
+IFILL:  MOV     #240,-(R1)      ; Priority five
+        MOV     #NISR,-(R1)     ; Null interrupt
+        TST     R1
+        BNE     IFILL
         
         ;; Emit ready msg
         WRITE   #MREADY,#5
@@ -95,6 +95,8 @@ SKIPRST:
         BNE     CYLRD
         
 DONE:
+        BIT     @#XCSR,#000200  ; Check XMIT RDY
+        BEQ     DONE            ; Loop if not set
         HALT
 
 ;;; Null ISR: return from interrupt. 
