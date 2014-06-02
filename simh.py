@@ -1,6 +1,7 @@
 import pexpect
 import os.path
 import time
+import sys
 
 class SIMH:
     def __init__(self,simh_path,init_path):
@@ -23,6 +24,29 @@ class SIMH:
             self.p.send('\x05')
             self.p.expect('sim> ')
             self.stopped = True
+
+
+    def load_address(self,address):
+        self.addr = address
+
+    def deposit_word(self, w):
+        self.stop()
+        self.p.send("d {0} {1}\n".format(oct(self.addr),oct(w)))
+        self.p.expect('sim> ')
+        self.addr = self.addr + 2
+
+    def start(self, drive, addr):
+        self.stop()
+        self.p.send("g {0}\n".format(oct(addr)))
+        # wait for 'READY'
+        self.p.expect("READY")
+        self.p.send('{0}'.format(drive))
+        try:
+            while True:
+                rsp = self.p.read_nonblocking(1024,10)
+                sys.stdout.write(rsp)
+        except Exception as e:
+            print e
 
     def send_file(self,native_path,remote_path):
         self.stop()
