@@ -28,17 +28,15 @@ class SIMH:
         self.stop()
         self.p.send('attach ptr {0}\n'.format(native_path))
         self.cont()
-        self.p.send('COPY PC: {0}\n'.format(remote_path))
+        self.do('COPY PC: {0}\n'.format(remote_path))
         self.p.expect('.')
-        self.stop()
 
     def recv_file(self,remote_path,native_path):
         self.stop()
         self.p.send('attach ptp {0}\n'.format(native_path))
         self.cont()
-        self.p.send('COPY {0} PC:\n'.format(remote_path))
+        self.do('COPY {0} PC:\n'.format(remote_path))
         self.p.expect('.')
-        self.stop()
 
     def do(self,command,timeout=1):
         self.cont()
@@ -78,13 +76,13 @@ if __name__=='__main__':
             local,remote = path,path
         s.send_file(local,remote)
     for cmd in args.do:
-        print s.do(cmd)
+        s.do(cmd)
     for path in args.recv:
         if path.find("=") >= 0:
             remote,local = path.split("=",2)
         else:
             remote,local = path,path
-        s.send_file(remote,local)
+        s.recv_file(remote,local)
 
 
     

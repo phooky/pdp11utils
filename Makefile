@@ -2,7 +2,7 @@ DIRS=./macro11
 MACRO11=./macro11/macro11
 OBJ_DUMPER=./objdumper.py
 
-OBJS=pakdump.out pakdump.simh
+OBJS=pakdmp.lda 
 all: $(OBJS)
 
 .PHONY: subdirs $(DIRS)
@@ -15,8 +15,8 @@ $(DIRS):
 %.simh: %.out subdirs
 	$(OBJ_DUMPER) $< -s $@
 
-%.out: %.mac
-	$(MACRO11) -o $@ -l $*.lst $<
+%.lda: %.mac
+	python simh.py --send $< --do "MACRO/LIST:$*.LST $*" --do "LINK/LDA $*" --recv $*.LST --recv $@
 
 clean:
 	rm -f $(OBJS)
