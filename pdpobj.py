@@ -12,8 +12,42 @@ def to_word_array(b):
         b = b[2:]
     return o
         
-# Parsing .OBJ files
+# Parsing .LDA files
+class LdaFile:
+    def __init__(self,path):
+        f = open(path,'rb')
+        self.blocks = []
+        while True:
+            try:
+                block = self.read_block(f)
+                if len(block.bin) == 0:
+                    break;
+                self.blocks.append(block)
+            except Exception as e:
+                print e
+                pass
+        f.close()
 
+    class Block:
+        def __init__(self,loc,data):
+            self.location = loc
+            self.bin = data
+            self.words = to_word_array(self.bin)
+
+    def read_block(self,f):
+        header = f.read(6)
+        if header[0:2] != '\x01\x00':
+            raise Exception("missing header")
+        sz,loc = struct.unpack("<HH",header[2:])
+        data = f.read(sz-6)
+        csum = (-(sum(map(ord,header)) + sum(map(ord,data)) ) ) & 0xff
+        check = ord(f.read(1))
+        if check != csum:
+            raise Exception("bad checksum {0} exp. {1}".format(hex(csum),hex(check)))
+        return LdaFile.Block(loc,data)
+    
+
+# Parsing .OBJ files
 class ObjFile:
     def __init__(self,path):
         f = open(path,'rb')
@@ -63,6 +97,8 @@ class ObjFile:
 
 
 if __name__=='__main__':
-    o = ObjFile(sys.argv[1])
+    o = LdaFile(sys.argv[1])
+    for b in o.blocks:
+        print len(b.bin),"at",b.location
 
         
