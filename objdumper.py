@@ -5,7 +5,7 @@ from emulator import Emulator
 import serial
 import argparse
 import simh
-
+import sys
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -32,4 +32,9 @@ if __name__ == '__main__':
                 for e in emus: e.load_address(block.location)
                 for w in block.words:
                     for e in emus: e.deposit_word(w)
-            e.start(0,o.blocks[0].location)
+            e.start(o.blocks[0].location)
+            e.wait_for('READY')
+            e.send('0')
+            for block in range(203):
+                sys.stdout.write(e.read(014000 * 2))
+
