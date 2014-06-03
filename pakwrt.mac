@@ -1,0 +1,147 @@
+        .TITLE  PAKWRT
+
+;;; Register definitions
+;;; DL11
+SERBAS = 177560 ; Base address of serial port 
+RCSR = 177560   ; RX Status
+RBUF = 177562   ; RX Buffer
+XCSR = 177564   ; TX Status
+XBUF = 177566   ; TX Buffer
+
+;;; RK11
+RKDS = 177400   ; Drive Status
+RKER = 177402   ; Error
+RKCS = 177404   ; Control Status
+RKWC = 177406   ; Word Count
+RKBA = 177410   ; Bus Address
+RKDA = 177412   ; Disk Address
+RKDB = 177416   ; Data Buffer
+
+ITOP  = 0400                    ; End of the interrupt vector
+
+.MACRO  WRITE   BUFFER, N
+        MOV     BUFFER,-(SP)
+        MOV     N,-(SP)
+        JSR     PC,IWRITE
+        ADD     #4,SP
+.ENDM   WRITE
+
+;;; Wait for RK11 ready bit
+.MACRO  RKRDYW  ?LAB
+LAB:    BIT     @#RKCS,#0200    ; Check drive ready
+        BEQ     LAB
+.ENDM   RKRDYW
+
+;;; PAKDUMP.MAC: dump RK05 decpack drives to the terminal as
+;;; raw binary code.
+;;;
+;;; Operation:
+;;; PAKDUMP emits "READY\n" on the terminal when it's ready to go.
+;;; It waits for a single numeric character to indicate which drive
+;;; to dump, and then dumps all data.
+;;;
+
+;;; Memory Map: (all values in octal)
+;;; 001000 - start of code
+;;; 002000 - start of text
+;;; 010000 - start of buffer
+;;; 077776 - top of stack
+
+START:
+        ;; Set up SP (start @32K)
+        MOV     #077776,SP
+        ;; Initialize interrupt vector
+        MOV     #ITOP,R1
+IFILL:  MOV     #240,-(R1)      ; Priority five
+        MOV     #NISR,-(R1)     ; Null interrupt
+        TST     R1
+        BNE     IFILL
+        
+        ;; Emit ready msg
+        WRITE   #MREADY,#5
+        ;; Wait for disk number
+        JSR     PC,GETCH
+        SUB     #060,R1         ; Convert from char to int
+        ;; Init disk
+        RKRDYW                  ; Wait for controller ready
+        MOV     #000001,@#RKCS  ; Issue controller reset
+        RKRDYW                  ; Wait for controller ready
+        MOV     R1,R2
+        ASH     #13,R2
+        MOV     R2,@#RKDA       ; Set address of 0,0,0 on drive
+
+;;; Register map for loop
+;;; R5 - remaining cylinder count
+;;; R2 - character read buffer pointer
+;;; R3 - characters remaining in read
+
+        MOV     #313, R5        ; R5 - cylinder count
+
+CYLRD:
+        MOV     #10000, R2
+        MOV     #14000, R3
+        ;; Emit go msg
+        WRITE   #GO,#2
+TERMRD: 
+        JSR     PC,GETCH
+        MOV     R1,(R2)+
+        DEC     R3
+        BNE     TERMRD
+
+        ;; Check for hard error
+        BIT     @#RKCS,#040000    ; Check drive ready
+        BEQ     SKIPRST
+        ;; Reset for hard error and resume at last block
+        MOV     @#RKDA,R4
+        MOV     #000001,@#RKCS  ; Issue controller reset
+        RKRDYW                  ; Wait for controller ready
+        MOV     R4,@#RKDA
+SKIPRST:        
+        ;; Write cylinder - 14000 words
+        MOV     #-14000,@#RKWC  ; Load an entire cylinder
+        MOV     #010000,@#RKBA   ; Start loading at location 10000
+        MOV     #000003,@#RKCS  ; Begin write
+        RKRDYW
+
+        DEC     R5
+        BNE     CYLRD
+        
+DONE:
+        HALT
+
+;;; Null ISR: return from interrupt. 
+NISR:
+        RTI
+        
+;;; Print function
+IWRITE:
+        MOV     R1,-(SP)
+        MOV     R2,-(SP)
+        MOV     6(SP),R2        ; R2 - count
+        MOV     10(SP),R1       ; R1 - buffer
+WRLOOP:
+        BIT     @#XCSR,#000200  ; Check XMIT RDY
+        BEQ     WRLOOP          ; Loop if not set
+        MOVB    (R1)+,@#XBUF    ; Write character to XBUF
+        DEC     R2
+        BNE     WRLOOP
+WREND:
+        MOV     R2,(SP)+
+        MOV     R1,(SP)+
+        RTS     PC
+
+;;; Getch function: returns next received character in R1.
+;;; Does not time out.
+GETCH:                          
+        BIT     @#RCSR,#000200  ; Check RX ready
+        BEQ     GETCH           ; Loop if not set
+        MOV     @#RBUF,R1       ; Read next character
+        RTS     PC
+
+        .ASECT
+.=2000       
+;;; Strings
+MREADY: .ASCIZ  /READY/
+        .ASCIZ  /GO/
+        .END    START
+

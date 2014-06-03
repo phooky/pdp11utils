@@ -2,7 +2,7 @@ DIRS=./macro11
 MACRO11=./macro11/macro11
 OBJ_DUMPER=./objdumper.py
 
-OBJS=pakdmp.lda 
+OBJS=pakdmp.lda pakwrt.lda
 all: $(OBJS)
 
 .PHONY: subdirs $(DIRS)
