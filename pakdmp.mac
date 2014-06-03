@@ -70,7 +70,7 @@ IFILL:  MOV     #240,-(R1)      ; Priority five
         ASH     #13,R2
         MOV     R2,@#RKDA       ; Set address of 0,0,0 on drive
 
-        MOV     #203, R5        ; R5 - cylinder count
+        MOV     #313, R5        ; R5 - cylinder count
 CYLRD:
         ;; Check for hard error
         BIT     @#RKCS,#040000    ; Check drive ready
@@ -81,13 +81,13 @@ CYLRD:
         RKRDYW                  ; Wait for controller ready
         MOV     R4,@#RKDA
 SKIPRST:        
-        ;; Read cylinder
+        ;; Read cylinder - 14000 words
         MOV     #-14000,@#RKWC  ; Load an entire cylinder
         MOV     #010000,@#RKBA   ; Start loading at location 10000
         MOV     #000005,@#RKCS  ; Begin read
         RKRDYW
-        ;; Dump cylinder
-        WRITE   #010000,#14000 
+        ;; Dump cylinder - 14000 words = 30000 bytes
+        WRITE   #010000,#30000 
 
         DEC     R5
         BNE     CYLRD
