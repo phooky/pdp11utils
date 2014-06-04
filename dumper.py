@@ -9,32 +9,28 @@ import sys
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s","--simh",action="store_true",default=False,
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("-s","--simh",action="store_true",default=False,
                         help="Use SIMH")
-    parser.add_argument("-e","--emulator",type=str,default=None,
+    group.add_argument("-e","--emulator",type=str,default=None,
                         help="Console emulator port")
-    parser.add_argument("objects",type=str,nargs="*")
     args = parser.parse_args()
 
-    emus = []
+    emu = None
     s = None
     if args.simh:
-        s = simh.SIMH("~/opt/bin/pdp11","./default.ini")
-        emus.append(s)
+        emu = simh.SIMH("~/opt/bin/pdp11","./default.ini")
     if args.emulator:
-        s = Emulator(serial.Serial(args.emulator,9600,timeout=0.02))
-        emus.append(s)
+        emu = Emulator(serial.Serial(args.emulator,9600,timeout=0.02))
 
-    for path in args.objects:
-        if path.endswith(".lda"):
-            o = LdaFile(path)
-            for block in o.blocks:
-                for e in emus: e.load_address(block.location)
-                for w in block.words:
-                    for e in emus: e.deposit_word(w)
-            e.start(o.blocks[0].location)
-            e.wait_for('READY')
-            e.send('0')
-            for block in range(203):
-                sys.stdout.write(e.read(014000 * 2))
+    o = LdaFile('pakdmp.lda')
+    for block in o.blocks:
+        emu.load_address(block.location)
+        for w in block.words:
+            emu.deposit_word(w)
+    emu.start(o.blocks[0].location)
+    emu.wait_for('READY')
+    emu.send('0')
+    for block in range(203):
+        sys.stdout.write(emu.read(014000 * 2))
 
