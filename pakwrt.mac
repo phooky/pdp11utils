@@ -72,31 +72,27 @@ IFILL:  MOV     #240,-(R1)      ; Priority five
 
 ;;; Register map for loop
 ;;; R5 - remaining cylinder count
-;;; R2 - character read buffer pointer
-;;; R3 - characters remaining in read
+;;; R3 - character read buffer pointer
+;;; R4 - characters remaining in read
 
         MOV     #313, R5        ; R5 - cylinder count
 
 CYLRD:
-        MOV     #10000, R2
-        MOV     #14000, R3
+        MOV     #10000, R3
+        MOV     #30000, R4
         ;; Emit go msg
-        WRITE   #GO,#2
+        WRITE   #MGO,#2
 TERMRD: 
         JSR     PC,GETCH
-        MOV     R1,(R2)+
-        DEC     R3
+        BICB    #360,R1
+        MOVB    R1,R0
+        JSR     PC,GETCH
+        BICB    #360,R1
+        ASH     #4,R1
+        BISB    R1,R0
+        MOVB    R0,(R3)+
+        DEC     R4
         BNE     TERMRD
-
-        ;; Check for hard error
-        BIT     @#RKCS,#040000    ; Check drive ready
-        BEQ     SKIPRST
-        ;; Reset for hard error and resume at last block
-        MOV     @#RKDA,R4
-        MOV     #000001,@#RKCS  ; Issue controller reset
-        RKRDYW                  ; Wait for controller ready
-        MOV     R4,@#RKDA
-SKIPRST:        
         ;; Write cylinder - 14000 words
         MOV     #-14000,@#RKWC  ; Load an entire cylinder
         MOV     #010000,@#RKBA   ; Start loading at location 10000
@@ -138,10 +134,8 @@ GETCH:
         MOV     @#RBUF,R1       ; Read next character
         RTS     PC
 
-        .ASECT
-.=2000       
 ;;; Strings
 MREADY: .ASCIZ  /READY/
-        .ASCIZ  /GO/
+MGO:    .ASCIZ  /GO/
         .END    START
 

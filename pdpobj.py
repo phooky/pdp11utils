@@ -7,6 +7,8 @@ def to_word(b):
 
 def to_word_array(b):
     o = []
+    if len(b) & 0x01:
+        b = b + '\x00'
     while b:
         o.append(struct.unpack("<H",b[:2])[0])
         b = b[2:]

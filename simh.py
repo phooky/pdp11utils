@@ -1,6 +1,7 @@
 import pexpect
 import os.path
 import time
+import sys
 
 class SIMH:
     def __init__(self,simh_path,init_path):
@@ -38,11 +39,15 @@ class SIMH:
         self.stop()
         self.p.send("g {0}\n".format(oct(addr)))
 
-    def wait_for(self,s):
-        self.p.expect(s)
+    def wait_for(self,s,timeout = 200):
+        sys.stderr.write("WAITING FOR {0}".format(s))
+        sys.stderr.flush()
+        self.p.expect(s,timeout)
 
     def send(self,s):
-        self.p.send(s)
+        bs = 1024
+        for i in range(0,len(s),bs):
+            self.p.send(s[i:i+bs])
 
     def read(self,sz):
         rsp = ''

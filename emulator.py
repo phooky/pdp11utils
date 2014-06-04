@@ -18,10 +18,10 @@ class Emulator:
         self.load_address(address)
         self.f.write("S\r")
 
-    def wait_for(self,s)
+    def wait_for(self,s):
         # wait for 'READY'
         r = ''
-        self.f.setTimeout(2)
+        self.f.setTimeout(20)
         sys.stderr.write("Waiting for ready...")
         while r[-len(s):] != s:
             r = r + self.f.read(1)
